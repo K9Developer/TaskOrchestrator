@@ -10,6 +10,17 @@ class Worker:
         self.client.connect()
         self.client.handshake()
     
+    def _expand_task(self, task: Task):
+        if type(task.input_buffer[0]) is not str or "-" not in task.input_buffer[0]: 
+            return
+        
+        new_buff = []
+        for item in task.input_buffer:
+            start_str, end_str = item.split("-")
+            start, end = int(start_str), int(end_str)
+            new_buff.extend([str(i) for i in range(start, end)])
+        task.input_buffer = new_buff
+
     def task_finished(self, task_id: int, status: str, values: list[any]):
         print(f"Task {task_id} finished with status: {status}, values: {values}")
         if status == "found":
@@ -34,9 +45,8 @@ class Worker:
                     break
 
                 if fields[0] == b'TASK':
-                   
-
                     task = pickle.loads(fields[1])
+                    self._expand_task(task)
                     TaskHandler.handle_task(task, self.task_finished)
             except KeyboardInterrupt:
                 print("Worker shutting down.")
@@ -46,6 +56,6 @@ class Worker:
                 break
 
 if __name__ == "__main__":
-    worker = Worker('10.100.102.216', 8080)
+    worker = Worker('10.100.102.174', 8080)
     worker.connect()
     worker.accept_tasks()

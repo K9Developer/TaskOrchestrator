@@ -94,13 +94,15 @@ class Connection:
         shared = client_pk.pointQ * sk.d
         key = derive_key(shared)
         self.aes_key = key
-        print("Shared key:", key.hex())
 
         d, _ = self.receive_fields(1)
         if d != b'OK': raise Exception("AES handshake failed")
 
         self.send_fields([b'OK'])
-        print(f"AES session established with {self.addr}")
+        print(f"AES session established with {f'{self.addr[0]}:{self.addr[1]}'}")
+        print("Shared key:", key.hex())
+        print(f"Client cores: {self.cores}")
+        print()
 
     def close(self):
         self.conn.close()
@@ -138,7 +140,7 @@ class SocketServer:
             conn, addr = self.sock.accept()
             connection = Connection(conn, addr)
             self.connections.append(connection)
-            print(f"New connection from {addr}")
+            print(f"New connection from {f'{addr[0]}:{addr[1]}'}")
             self.callbacks.get('on_connect', lambda conn: None)(connection)
             threading.Thread(target=self.__handle_client, args=(connection,), daemon=True).start()
 

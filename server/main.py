@@ -149,15 +149,30 @@ class TaskOrchestrator:
 if __name__ == "__main__":
     to = TaskOrchestrator()
     to.start()
-    input("Press Enter to add tasks...\n")
+    input("Press Enter to add tasks...\n\n")
 
+    core_count = sum([conn.cores for conn in to.connections])
+    max_num = 100_000_000
+    
+    chunk_size = max_num // core_count
+    range_strings = []
+    
+    for i in range(core_count):
+        start = i * chunk_size
+        if i == core_count - 1:
+            end = max_num
+        else:
+            end = (i + 1) * chunk_size
+        range_strings.append(f"{start}-{end}")
+    
     gen, chunk_count = Task.get_chunks(
-        data_gen=(str(i) for i in range(10000)), 
-        total_size=10000, 
-        chunk_count=len(to.cores),
+        data_gen=(range_str for range_str in range_strings), 
+        total_size=len(range_strings), 
+        chunk_count=core_count,
         action=Action.MD5,
         expected_result="ef775988943825d2871e1cfa75473ec0",
         max_chunk_size=MAX_TASK_SIZE
     )
+    print("Generated tasks, adding to orchestrator...\n")
     to.add_tasks(gen, chunk_count)
     to.handle_tasks()

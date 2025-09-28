@@ -108,8 +108,10 @@ class Connection:
         self.conn.close()
 
 class SocketServer:
-    def __init__(self, host='0.0.0.0', port=8080, listen=1000, callbacks: dict = {}):
+    def __init__(self, host='0.0.0.0', port=8080, listen=1000, callbacks: dict = {}, timeout: int = None):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if timeout is not None:
+            self.sock.settimeout(timeout)
         self.connections: list[Connection] = []
         self.callbacks = callbacks
 

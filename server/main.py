@@ -73,7 +73,18 @@ class TaskOrchestrator:
         self.total_tasks += tasks_len
         self.pending_tasks = itertools.chain(self.pending_tasks, tasks)
 
+    def _len_of_expanded_task(self, input_buffer) -> int:
+        if type(input_buffer[0]) is str and "-" in input_buffer[0]:
+            length = 0
+            for item in input_buffer:
+                start_str, end_str = item.split("-")
+                start, end = int(start_str), int(end_str)
+                length += (end - start)
+            return length
+        return len(input_buffer)
+
     def __send_task(self, connection: Connection, task: Task):
+        print(f"Sending task {task.id} to {connection.addr[0]} ({len(task.input_buffer)} items)")
         connection.send_fields([
             'TASK',                                 # ID
             pickle.dumps(task),                     # Task object
@@ -83,7 +94,7 @@ class TaskOrchestrator:
         self.start_time = time.time()
         index = 0
         while len(self.finished_tasks) != self.total_tasks:
-            if not self.pending_tasks: continue
+            if not self.pending_tasks or len(self.cores) == 0: continue
             
             connection = self.cores[index % len(self.cores)]
 
@@ -100,7 +111,7 @@ class TaskOrchestrator:
                 if task.id == int(task_id):
                     tasks.remove(task)
                     self.finished_tasks.append(task)
-                    return
+                    return task
 
     def __reassign_task(self, task: Task):
         if task.id in self.ongoing_tasks:
@@ -129,29 +140,31 @@ class TaskOrchestrator:
         
         fields = connection._parse_fields(raw, 2)
         msg_id = fields[0].decode()
+        task_id = fields[1].decode()
+        task = self.__finish_task(task_id)
+        rate = 0
+        time_took = time.time() - self.start_time
+        if task:
+            hashes_calculated = sum([self._len_of_expanded_task(t.input_buffer) for t in self.finished_tasks]) + self._len_of_expanded_task(task.input_buffer)
+            rate = (hashes_calculated // time_took) if time_took > 0 else 0
+
         if msg_id == 'FOUND':
+            
             try:
-                task_id = fields[1].decode()
                 values = pickle.loads(fields[2])
-                self.__finish_task(task_id)
                 for value in values:
-                    print(f"!!!! Task {task_id} found result: {value} (in {time.time() - self.start_time:.2f}s) !!!!")
+                    print(f"Task {task_id} ({len(self.finished_tasks)}/{self.total_tasks}) marked as FOUND (value: {value}) by {connection.addr[0]} in {time_took:.2f}s, Rate: {rate} hashes/second")
             except Exception as e:
                 print(f"Error processing FOUND message from {connection}: {e}")
         elif msg_id == 'DONE':
-            try:
-                task_id = fields[1].decode()
-                self.__finish_task(task_id)
-                print(f"Task {task_id} marked as DONE by {connection.addr[0]} (not found) {len(self.finished_tasks)}/{self.total_tasks}")
-            except Exception as e:
-                print(f"Error processing DONE message from {connection}: {e}")
+            print(f"Task {task_id} ({len(self.finished_tasks)}/{self.total_tasks}) marked as DONE by {connection.addr[0]} (not found), Rate: {rate} hashes/second")
 
 if __name__ == "__main__":
     to = TaskOrchestrator()
     to.start()
     input("Press Enter to add tasks...\n\n")
 
-    core_count = sum([conn.cores for conn in to.connections])
+    core_count = len(to.cores)
     max_num = 100_000_000
     
     chunk_size = max_num // core_count

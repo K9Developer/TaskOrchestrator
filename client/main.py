@@ -28,20 +28,16 @@ class Worker:
     def accept_tasks(self):
         while True:
             try:
-                data, fields = self.client.receive_fields(4)
+                data, fields = self.client.receive_fields(1)
                 if not fields:
                     print("Connection closed by server")
                     break
 
                 if fields[0] == b'TASK':
-                    fields = [*fields[:4], fields[4][:int(fields[3])], fields[4][int(fields[3])+1:]]
                    
-                    action = fields[1].decode('utf-8')
-                    task_id = int(fields[2])
-                    expected_result = pickle.loads(fields[4])
-                    input_buffer = pickle.loads(fields[5])
 
-                    TaskHandler.handle_task(Task(action, task_id, expected_result, input_buffer), self.task_finished)
+                    task = pickle.loads(fields[1])
+                    TaskHandler.handle_task(task, self.task_finished)
             except KeyboardInterrupt:
                 print("Worker shutting down.")
                 break
@@ -50,6 +46,6 @@ class Worker:
                 break
 
 if __name__ == "__main__":
-    worker = Worker('localhost', 8080)
+    worker = Worker('10.100.102.216', 8080)
     worker.connect()
     worker.accept_tasks()

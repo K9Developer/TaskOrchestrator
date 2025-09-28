@@ -38,8 +38,14 @@ class SocketClient:
         print(f"Connected to server at {self.host}:{self.port}")
 
     def receive_raw(self, bufsize=1024) -> bytes:
-        return self.sock.recv(bufsize)
-    
+        data = b''
+        while len(data) < bufsize:
+            packet = self.sock.recv(bufsize - len(data))
+            if not packet:
+                return b''
+            data += packet
+        return data
+
     def send_raw(self, data: bytes):
         self.sock.sendall(data)
 

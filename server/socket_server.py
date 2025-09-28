@@ -37,7 +37,13 @@ class Connection:
         self.conn.sendall(data)
 
     def receive_raw(self, bufsize=1024) -> bytes:
-        return self.conn.recv(bufsize)
+        data = b''
+        while len(data) < bufsize:
+            packet = self.conn.recv(bufsize - len(data))
+            if not packet:
+                return b''
+            data += packet
+        return data
 
     def _parse_fields(self, data: bytes, field_count: int = -1) -> list[bytes]:
         return data.split(SEPARATOR, field_count)

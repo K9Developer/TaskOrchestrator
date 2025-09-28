@@ -74,14 +74,9 @@ class TaskOrchestrator:
         self.pending_tasks = itertools.chain(self.pending_tasks, tasks)
 
     def __send_task(self, connection: Connection, task: Task):
-        exp = pickle.dumps(task.expected_result)
         connection.send_fields([
             'TASK',                                 # ID
-            str(task.action),                       # Action
-            str(task.id),                           # Unique Task ID
-            str(len(exp)),                          # Expected Result Length
-            exp,                                    # Expected Result
-            pickle.dumps(task.input_buffer)         # Input Buffer
+            pickle.dumps(task),                     # Task object
         ])
 
     def handle_tasks(self):
@@ -157,8 +152,8 @@ if __name__ == "__main__":
     input("Press Enter to add tasks...\n")
 
     gen, chunk_count = Task.get_chunks(
-        data_gen=(str(i) for i in range(100000000)), 
-        total_size=100000000, 
+        data_gen=(str(i) for i in range(10000)), 
+        total_size=10000, 
         chunk_count=len(to.cores),
         action=Action.MD5,
         expected_result="ef775988943825d2871e1cfa75473ec0",
